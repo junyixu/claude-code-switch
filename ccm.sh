@@ -137,6 +137,9 @@ ARK_API_KEY=your-ark-api-key
 # Qwen（阿里云 DashScope）
 QWEN_API_KEY=your-qwen-api-key
 
+# Qin (qinzhiai.com)
+QIN_API_KEY=your-qin-api-key
+
 # Claude (如果使用API key而非Pro订阅)
 CLAUDE_API_KEY=your-claude-api-key
 
@@ -258,6 +261,9 @@ ARK_API_KEY=your-ark-api-key
 
 # Qwen（阿里云 DashScope）
 QWEN_API_KEY=your-qwen-api-key
+
+# Qin (qinzhiai.com)
+QIN_API_KEY=your-qin-api-key
 
 # Claude (如果使用API key而非Pro订阅)
 CLAUDE_API_KEY=your-claude-api-key
@@ -685,6 +691,7 @@ show_status() {
     echo "   DEEPSEEK_API_KEY: $(mask_presence DEEPSEEK_API_KEY)"
     echo "   ARK_API_KEY: $(mask_presence ARK_API_KEY)"
     echo "   QWEN_API_KEY: $(mask_presence QWEN_API_KEY)"
+    echo "   QIN_API_KEY: $(mask_presence QIN_API_KEY)"
     echo "   PPINFRA_API_KEY: $(mask_presence PPINFRA_API_KEY)"
 }
 
@@ -902,13 +909,13 @@ switch_to_minimax() {
     echo -e "${YELLOW}🔄 $(t 'switching_to') MiniMax M2 $(t 'model')...${NC}"
     clean_env
     if is_effectively_set "$MINIMAX_API_KEY"; then
-        # 官方 MiniMax 的 Anthropic 兼容端点
-        export ANTHROPIC_BASE_URL="https://api.minimax.io/anthropic"
-        export ANTHROPIC_API_URL="https://api.minimax.io/anthropic"
+        # 官方 MiniMax 的 Anthropic 兼容端点（国内用户）
+        export ANTHROPIC_BASE_URL="https://api.minimaxi.com/anthropic"
+        export ANTHROPIC_API_URL="https://api.minimaxi.com/anthropic"
         export ANTHROPIC_AUTH_TOKEN="$MINIMAX_API_KEY"
         export ANTHROPIC_API_KEY="$MINIMAX_API_KEY"
-        export ANTHROPIC_MODEL="minimax/minimax-m2"
-        export ANTHROPIC_SMALL_FAST_MODEL="minimax/minimax-m2"
+        export ANTHROPIC_MODEL="MiniMax-M2"
+        export ANTHROPIC_SMALL_FAST_MODEL="MiniMax-M2"
         echo -e "${GREEN}✅ $(t 'switched_to') MiniMax M2（$(t 'official')）${NC}"
     elif is_effectively_set "$PPINFRA_API_KEY"; then
         # 备用：PPINFRA Anthropic 兼容
@@ -986,6 +993,29 @@ switch_to_seed() {
     echo "   BASE_URL: $ANTHROPIC_BASE_URL"
     echo "   MODEL: $ANTHROPIC_MODEL"
     echo "   TIMEOUT: $API_TIMEOUT_MS"
+}
+
+# 切换到Qin (qinzhiai.com)
+switch_to_qin() {
+    echo -e "${YELLOW}🔄 切换到 Qin 模型...${NC}"
+    clean_env
+    if is_effectively_set "$QIN_API_KEY"; then
+        export ANTHROPIC_BASE_URL="https://qinzhiai.com"
+        export ANTHROPIC_API_URL="https://qinzhiai.com"
+        export ANTHROPIC_AUTH_TOKEN="$QIN_API_KEY"
+        export ANTHROPIC_API_KEY="$QIN_API_KEY"
+        local qin_model="${QIN_MODEL:-claude-sonnet-4-5-20250929}"
+        local qin_small="${QIN_SMALL_FAST_MODEL:-claude-sonnet-4-5-20250929}"
+        export ANTHROPIC_MODEL="$qin_model"
+        export ANTHROPIC_SMALL_FAST_MODEL="$qin_small"
+        echo -e "${GREEN}✅ 已切换到 Qin（qinzhiai.com）${NC}"
+    else
+        echo -e "${RED}❌ Please configure QIN_API_KEY${NC}"
+        return 1
+    fi
+    echo "   BASE_URL: $ANTHROPIC_BASE_URL"
+    echo "   MODEL: $ANTHROPIC_MODEL"
+    echo "   SMALL_MODEL: $ANTHROPIC_SMALL_FAST_MODEL"
 }
 
 # 切换到StreamLake AI (KAT)
@@ -1161,6 +1191,7 @@ show_help() {
     echo "  longcat, lc        - env longcat"
     echo "  minimax, mm        - env minimax"
     echo "  qwen               - env qwen"
+    echo "  qin                - env qin (qinzhiai.com)"
     echo "  glm, glm4          - env glm"
     echo "  claude, sonnet, s  - env claude"
     echo "  opus, o            - env opus"
@@ -1199,6 +1230,7 @@ show_help() {
     echo "  🐱 LongCat             - 官方：LongCat-Flash-Thinking / LongCat-Flash-Chat"
     echo "  🎯 MiniMax M2          - 官方：MiniMax-M2 ｜ 备用：MiniMax-M2 (PPINFRA)"
     echo "  🐪 Qwen                - 官方：qwen3-max (阿里云) ｜ 备用：qwen3-next-80b-a3b-thinking (PPINFRA)"
+    echo "  🔍 Qin                 - qinzhiai.com 自定义端点"
     echo "  🇨🇳 GLM4.6             - 官方：glm-4.6 / glm-4.5-air"
     echo "  🧠 Claude Sonnet 4.5   - claude-sonnet-4-5-20250929"
     echo "  🚀 Claude Opus 4.1     - claude-opus-4-1-20250805"
@@ -1225,6 +1257,8 @@ ensure_model_override_defaults() {
         "SEED_SMALL_FAST_MODEL=doubao-seed-code-preview-latest"
         "QWEN_MODEL=qwen3-max"
         "QWEN_SMALL_FAST_MODEL=qwen3-next-80b-a3b-instruct"
+        "QIN_MODEL=claude-sonnet-4-5-20250929"
+        "QIN_SMALL_FAST_MODEL=claude-sonnet-4-5-20250929"
         "GLM_MODEL=glm-4.6"
         "GLM_SMALL_FAST_MODEL=glm-4.5-air"
         "CLAUDE_MODEL=claude-sonnet-4-5-20250929"
@@ -1453,6 +1487,24 @@ emit_env_exports() {
                 return 1
             fi
             ;;
+        "qin")
+            if is_effectively_set "$QIN_API_KEY"; then
+                echo "$prelude"
+                echo "export API_TIMEOUT_MS='600000'"
+                echo "export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC='1'"
+                echo "export ANTHROPIC_BASE_URL='https://qinzhiai.com'"
+                echo "export ANTHROPIC_API_URL='https://qinzhiai.com'"
+                echo "if [ -z \"\${QIN_API_KEY}\" ] && [ -f \"\$HOME/.ccm_config\" ]; then . \"\$HOME/.ccm_config\" >/dev/null 2>&1; fi"
+                echo "export ANTHROPIC_AUTH_TOKEN=\"\${QIN_API_KEY}\""
+                local qin_model="${QIN_MODEL:-claude-sonnet-4-5-20250929}"
+                local qin_small="${QIN_SMALL_FAST_MODEL:-claude-sonnet-4-5-20250929}"
+                echo "export ANTHROPIC_MODEL='${qin_model}'"
+                echo "export ANTHROPIC_SMALL_FAST_MODEL='${qin_small}'"
+            else
+                echo -e "${RED}❌ Please configure QIN_API_KEY${NC}" >&2
+                return 1
+            fi
+            ;;
         "claude"|"sonnet"|"s")
             echo "$prelude"
             # 官方 Anthropic 默认网关，无需设置 BASE_URL
@@ -1511,12 +1563,12 @@ emit_env_exports() {
                 echo "$prelude"
                 echo "export API_TIMEOUT_MS='600000'"
                 echo "export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC='1'"
-                echo "export ANTHROPIC_BASE_URL='https://api.minimax.io/anthropic'"
-                echo "export ANTHROPIC_API_URL='https://api.minimax.io/anthropic'"
+                echo "export ANTHROPIC_BASE_URL='https://api.minimaxi.com/anthropic'"
+                echo "export ANTHROPIC_API_URL='https://api.minimaxi.com/anthropic'"
                 echo "if [ -z \"\${MINIMAX_API_KEY}\" ] && [ -f \"\$HOME/.ccm_config\" ]; then . \"\$HOME/.ccm_config\" >/dev/null 2>&1; fi"
                 echo "export ANTHROPIC_AUTH_TOKEN=\"\${MINIMAX_API_KEY}\""
-                local mm_model="${MINIMAX_MODEL:-minimax/minimax-m2}"
-                local mm_small="${MINIMAX_SMALL_FAST_MODEL:-minimax/minimax-m2}"
+                local mm_model="${MINIMAX_MODEL:-MiniMax-M2}"
+                local mm_small="${MINIMAX_SMALL_FAST_MODEL:-MiniMax-M2}"
                 echo "export ANTHROPIC_MODEL='${mm_model}'"
                 echo "export ANTHROPIC_SMALL_FAST_MODEL='${mm_small}'"
             elif is_effectively_set "$PPINFRA_API_KEY"; then
@@ -1668,6 +1720,9 @@ main() {
             ;;
         "seed"|"doubao")
             emit_env_exports seed
+            ;;
+        "qin")
+            emit_env_exports qin
             ;;
         "glm"|"glm4"|"glm4.6")
             emit_env_exports glm
